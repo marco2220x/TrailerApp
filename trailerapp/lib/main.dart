@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'screens/truck_screen.dart';
 import 'screens/fault_analysis_screen.dart';
-import 'screens/maintenance_centers_screen.dart'; // Importa la nueva pantalla
+import 'screens/maintenance_centers_screen.dart';
+import 'screens/fault_history_screen.dart'; // Importa la nueva pantalla
 
 void main() {
+  // Usar debugShowCheckedModeBanner para desactivar la etiqueta DEBUG
   runApp(MyApp());
 }
 
@@ -17,7 +19,8 @@ class MyApp extends StatelessWidget {
       routes: {
         '/truck': (context) => TruckScreen(),
         '/fault-analysis': (context) => FaultAnalysisScreen(),
-        '/maintenance-centers': (context) => MaintenanceCentersScreen(), // Nueva ruta
+        '/maintenance-centers': (context) => MaintenanceCentersScreen(),
+        '/fault-history': (context) => FaultHistoryScreen(), // Nueva ruta
       },
     );
   }
