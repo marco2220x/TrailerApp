@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "326791179951",
+    "project_id": "juanelmecanicodb",
+    "storage_bucket": "juanelmecanicodb.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:326791179951:android:77342082c4ffd6bbd4ee5a",
+        "android_client_info": {
+          "package_name": "com.example.trailerapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDf-ZFA4I_pUWmjRP6TPfZIc_jOGcVHE6M"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

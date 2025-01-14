@@ -4,7 +4,16 @@ import 'screens/fault_analysis_screen.dart';
 import 'screens/maintenance_centers_screen.dart';
 import 'screens/fault_history_screen.dart'; // Importa la nueva pantalla
 
-void main() {
+//Firebase imports
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
+
+Future<void> main() async {
+  //Firebase configuration
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
   // Usar debugShowCheckedModeBanner para desactivar la etiqueta DEBUG
   runApp(MyApp());
 }
