@@ -3,8 +3,12 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:http/http.dart' as http;
 import 'dart:async';
 import 'dart:convert';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class RouteScreen extends StatefulWidget {
+  final String truckDocumentId =
+      'G4F5gx1g0ITQUL0HBvUR'; // El ID del documento de Firestore
+
   @override
   _RouteScreenState createState() => _RouteScreenState();
 }
@@ -13,24 +17,28 @@ class _RouteScreenState extends State<RouteScreen> {
   final Completer<GoogleMapController> _mapController = Completer();
   List<LatLng> _routePoints = [];
   bool _isRouteActive = false;
+  LatLng? _startLocation;
+  LatLng? _endLocation;
 
-  // Coordenadas para Ciudad de México y Puebla
-  static const LatLng _startLocation = LatLng(19.432608, -99.133209); // Ciudad de México
-  static const LatLng _endLocation = LatLng(19.041296, -98.206283); // Puebla
-
-  final String _openRouteServiceApiKey = '5b3ce3597851110001cf62486d87929fc8724ec6a10783e887949758'; // Reemplaza con tu clave de OpenRouteService
+  final String _openRouteServiceApiKey =
+      '5b3ce3597851110001cf62486d87929fc8724ec6a10783e887949758'; // Reemplaza con tu clave de OpenRouteService
 
   // Función para obtener y mostrar la ruta desde la API de OpenRouteService
   Future<void> _startRoute() async {
     try {
-      final routePoints = await getRoutePoints(
-        '${_startLocation.longitude},${_startLocation.latitude}', // Longitud, Latitud para OpenRouteService
-        '${_endLocation.longitude},${_endLocation.latitude}', // Longitud, Latitud para OpenRouteService
-      );
-      setState(() {
-        _routePoints = routePoints;
-        _isRouteActive = true;
-      });
+      if (_startLocation != null && _endLocation != null) {
+        final routePoints = await getRoutePoints(
+          '${_startLocation!.longitude},${_startLocation!.latitude}', // Longitud, Latitud para OpenRouteService
+          '${_endLocation!.longitude},${_endLocation!.latitude}', // Longitud, Latitud para OpenRouteService
+        );
+        setState(() {
+          _routePoints = routePoints;
+          _isRouteActive = true;
+        });
+      } else {
+        throw Exception(
+            'Las coordenadas de inicio y fin no están disponibles.');
+      }
     } catch (e) {
       print("Error al obtener la ruta: $e");
       ScaffoldMessenger.of(context).showSnackBar(
@@ -74,9 +82,44 @@ class _RouteScreenState extends State<RouteScreen> {
   List<LatLng> decodePolyline(List<dynamic> encoded) {
     List<LatLng> points = [];
     for (var point in encoded) {
-      points.add(LatLng(point[1], point[0]));  // OJO: la latitud y longitud están invertidas
+      points.add(LatLng(
+          point[1], point[0])); // OJO: la latitud y longitud están invertidas
     }
     return points;
+  }
+
+  // Función para obtener las coordenadas desde Firestore
+  Future<void> _fetchCoordinates() async {
+    try {
+      DocumentSnapshot doc = await FirebaseFirestore.instance
+          .collection('camiones') // Ajusta el nombre de la colección
+          .doc(widget.truckDocumentId) // Usa el ID del documento proporcionado
+          .get();
+
+      if (doc.exists) {
+        GeoPoint startGeoPoint = doc['ubic_inicio'];
+        GeoPoint endGeoPoint = doc['ubic_final'];
+
+        setState(() {
+          _startLocation =
+              LatLng(startGeoPoint.latitude, startGeoPoint.longitude);
+          _endLocation = LatLng(endGeoPoint.latitude, endGeoPoint.longitude);
+        });
+      } else {
+        throw Exception('Documento no encontrado');
+      }
+    } catch (e) {
+      print("Error al obtener las coordenadas: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error al obtener las coordenadas: $e")),
+      );
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchCoordinates();
   }
 
   @override
@@ -94,8 +137,10 @@ class _RouteScreenState extends State<RouteScreen> {
       body: Stack(
         children: [
           GoogleMap(
-            initialCameraPosition: const CameraPosition(
-              target: _startLocation,
+            initialCameraPosition: CameraPosition(
+              target: _startLocation ??
+                  LatLng(19.432608,
+                      -99.133209), // Valor predeterminado si las coordenadas aún no se cargaron
               zoom: 6,
             ),
             polylines: {
@@ -108,16 +153,18 @@ class _RouteScreenState extends State<RouteScreen> {
                 ),
             },
             markers: {
-              Marker(
-                markerId: const MarkerId('start'),
-                position: _startLocation,
-                infoWindow: const InfoWindow(title: 'Start: Ciudad de México'),
-              ),
-              Marker(
-                markerId: const MarkerId('end'),
-                position: _endLocation,
-                infoWindow: const InfoWindow(title: 'End: Puebla'),
-              ),
+              if (_startLocation != null)
+                Marker(
+                  markerId: const MarkerId('start'),
+                  position: _startLocation!,
+                  infoWindow: const InfoWindow(title: 'Inicio'),
+                ),
+              if (_endLocation != null)
+                Marker(
+                  markerId: const MarkerId('end'),
+                  position: _endLocation!,
+                  infoWindow: const InfoWindow(title: 'Fin'),
+                ),
             },
             onMapCreated: (controller) => _mapController.complete(controller),
           ),

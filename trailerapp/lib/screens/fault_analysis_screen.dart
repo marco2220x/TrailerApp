@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; // Importa Firestore
 
 class FaultAnalysisScreen extends StatefulWidget {
+  final String truckDocumentId = 'G4F5gx1g0ITQUL0HBvUR';
+
   @override
   _FaultAnalysisScreenState createState() => _FaultAnalysisScreenState();
 }
@@ -12,11 +15,45 @@ class _FaultAnalysisScreenState extends State<FaultAnalysisScreen> {
   String? faultReason;
   String? correctiveAction;
 
+  // Método para analizar la falla (muestra resultados estáticos)
   void _analyzeFault() {
     setState(() {
-      faultReason = "Turbocharger boost pressure drop detected.";
-      correctiveAction = "Schedule a service for inspection.";
+      faultReason =
+          "Turbocharger boost pressure drop detected."; // Resultado estático
+      correctiveAction =
+          "Schedule a service for inspection."; // Acción estática
     });
+
+    // Guardar en Firestore
+    _saveFaultRecord();
+  }
+
+  // Método para guardar los datos en Firestore
+  void _saveFaultRecord() async {
+    // Referencia a la subcolección 'fallas' del camión con el ID proporcionado
+    final faultCollection = FirebaseFirestore.instance
+        .collection('camiones')
+        .doc(widget.truckDocumentId)
+        .collection('fallas');
+
+    // Crear un nuevo documento con los datos del análisis
+    await faultCollection.add({
+      'codigo': _faultCodeController
+          .text, // El código de falla ingresado por el usuario
+      'resultados':
+          faultReason ?? '', // Resultado de análisis (razón de la falla)
+      'accion': correctiveAction ?? '', // Acción correctiva
+      'relacion_codigos':
+          'Posibles relaciones', // Este campo estático como ejemplo
+      'tiempo': FieldValue.serverTimestamp(), // Fecha y hora de la consulta
+      'mecanico': '', // Dejamos vacío para llenar más tarde
+      'solucion': '', // Dejamos vacío para llenar más tarde
+    });
+
+    // Opcional: Mostrar un mensaje confirmando que el registro fue guardado
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Análisis guardado exitosamente')),
+    );
   }
 
   @override
@@ -83,8 +120,8 @@ class _FaultAnalysisScreenState extends State<FaultAnalysisScreen> {
                         const SizedBox(height: 10),
                         Text(
                           'Acción: $correctiveAction',
-                          style: const TextStyle(
-                              fontSize: 14, color: Colors.blue),
+                          style:
+                              const TextStyle(fontSize: 14, color: Colors.blue),
                         ),
                       ],
                     ),
