@@ -1,12 +1,26 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart'; // Importa Firestore
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class FaultHistoryScreen extends StatelessWidget {
-  final String truckDocumentId = 'G4F5gx1g0ITQUL0HBvUR';
+  final String truckDocumentId;
+
+  const FaultHistoryScreen({Key? key, required this.truckDocumentId})
+      : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    // Referencia a la subcolección "fallas" del camión
+    // Verificamos que el truckDocumentId no sea nulo o vacío
+    if (truckDocumentId.isEmpty) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text('Historial de Fallas'),
+        ),
+        body: Center(
+          child: Text('ID del camión no proporcionado.'),
+        ),
+      );
+    }
+
     final CollectionReference faultCollection = FirebaseFirestore.instance
         .collection('camiones')
         .doc(truckDocumentId)
@@ -29,21 +43,25 @@ class FaultHistoryScreen extends StatelessWidget {
 
           final faultRecords = snapshot.data!.docs;
 
+          // Imprimimos los registros para depuración
+          print('Registros de fallas para $truckDocumentId: ${faultRecords.length} encontrados.');
+
           return ListView.builder(
             itemCount: faultRecords.length,
             itemBuilder: (context, index) {
               final record = faultRecords[index].data() as Map<String, dynamic>;
 
-              final String codigo = record['codigo'];
-              final String resultados = record['resultados'];
-              final Timestamp tiempo = record['tiempo'];
-              final String formattedTime =
-                  '${tiempo.toDate().day}/${tiempo.toDate().month}/${tiempo.toDate().year} ${tiempo.toDate().hour}:${tiempo.toDate().minute}';
+              // Maneja campos nulos con valores predeterminados
+              final String codigo = record['codigo'] ?? 'Sin código';
+              final String resultados = record['resultados'] ?? 'Sin resultados';
+              final Timestamp? tiempo = record['tiempo'] as Timestamp?;
+              final String formattedTime = tiempo != null
+                  ? '${tiempo.toDate().day}/${tiempo.toDate().month}/${tiempo.toDate().year} ${tiempo.toDate().hour}:${tiempo.toDate().minute}'
+                  : 'Sin fecha';
 
               return ListTile(
                 title: Text(codigo),
-                subtitle:
-                    Text('Fecha: $formattedTime\nResultados: $resultados'),
+                subtitle: Text('Fecha: $formattedTime\nResultados: $resultados'),
                 onTap: () {
                   showDialog(
                     context: context,
@@ -51,10 +69,9 @@ class FaultHistoryScreen extends StatelessWidget {
                       title: Text(codigo),
                       content: Text(
                         'Fecha y hora de consulta: $formattedTime\n\n'
-                        'Resultados: ${record['resultados']}\n'
-                        'Acción: ${record['accion']}\n'
-                        'Relacion códigos: ${record['relacion_codigos']}\n\n'
-                        'Solución: ${record['solucion']}\n',
+                        'Resultados: ${record['resultados'] ?? 'Sin resultados'}\n'
+                        'Acción: ${record['accion'] ?? 'Sin acción'}\n'
+                        'Relacion códigos: ${record['relacion_codigos'] ?? 'Sin relación'}',
                       ),
                       actions: [
                         TextButton(

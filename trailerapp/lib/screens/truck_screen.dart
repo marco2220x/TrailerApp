@@ -2,10 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:geocoding/geocoding.dart' hide Location;
+import 'fault_analysis_screen.dart'; // Importa tu pantalla de historial de fallas
+import 'fault_history_screen.dart'; // Importa tu pantalla de historial de fallas
 import 'package:location/location.dart';
+
 import 'route_screen.dart';
 
 class TruckScreen extends StatefulWidget {
+  final String truckId;
+
+  const TruckScreen({Key? key, required this.truckId}) : super(key: key);
+
   @override
   _TruckScreenState createState() => _TruckScreenState();
 }
@@ -19,6 +26,7 @@ class _TruckScreenState extends State<TruckScreen> {
   bool _isLoadingData = true;
   String? _errorMessage;
   String? _truckName;
+  String? _truckModel;
 
   @override
   void initState() {
@@ -31,14 +39,15 @@ class _TruckScreenState extends State<TruckScreen> {
     try {
       DocumentSnapshot doc = await FirebaseFirestore.instance
           .collection('camiones')
-          .doc('G4F5gx1g0ITQUL0HBvUR')
+          .doc(widget.truckId)
           .get();
 
       if (doc.exists) {
-        GeoPoint startGeoPoint = doc['ubic_inicio'];
-        GeoPoint endGeoPoint = doc['ubic_final'];
+        final data = doc.data() as Map<String, dynamic>;
+        GeoPoint startGeoPoint = data['ubic_inicio'];
+        GeoPoint endGeoPoint = data['ubic_final'];
 
-        // Realizar geocodificación inversa para obtener los nombres de las ciudades
+        // Geocodificación inversa para obtener los nombres de las ciudades
         List<Placemark> startPlacemarks = await placemarkFromCoordinates(
           startGeoPoint.latitude,
           startGeoPoint.longitude,
@@ -49,7 +58,8 @@ class _TruckScreenState extends State<TruckScreen> {
         );
 
         setState(() {
-          _truckName = doc['nombre'];
+          _truckName = data['nombre'];
+          _truckModel = data['modelo'];
           _startCity = startPlacemarks.first.locality ?? 'Desconocido';
           _endCity = endPlacemarks.first.locality ?? 'Desconocido';
           _isLoadingData = false;
@@ -132,24 +142,41 @@ class _TruckScreenState extends State<TruckScreen> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  Text('Modelo: $_truckModel',
+                      style: const TextStyle(fontSize: 16)),
+                  const SizedBox(height: 20),
                   _buildSection(
                     title: 'Ruta',
                     subtitle: 'De $_startCity a $_endCity',
                     icon: Icons.arrow_forward,
                     onTap: () => Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => RouteScreen()),
+                      MaterialPageRoute(
+                        builder: (context) => RouteScreen(
+                          truckDocumentId: widget.truckId,
+                        ),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 20),
+                  // Dentro de _TruckScreenState en TruckScreen
                   _buildSection(
                     title: 'Análisis de Fallas',
                     subtitle:
                         'Ingresar los códigos de falla para un diagnóstico',
                     icon: Icons.arrow_forward,
-                    onTap: () =>
-                        Navigator.pushNamed(context, '/fault-analysis'),
+                    onTap: (){
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => FaultAnalysisScreen(
+                            truckDocumentId: widget.truckId,
+                          ),
+                        ),
+                      );
+                    },
                   ),
+
                   const SizedBox(height: 20),
                   _buildSection(
                     title: 'Centros de Mantenimiento',
@@ -163,7 +190,16 @@ class _TruckScreenState extends State<TruckScreen> {
                     title: 'Historial de Fallas',
                     subtitle: 'Revisar el historial de errores detectados',
                     icon: Icons.history,
-                    onTap: () => Navigator.pushNamed(context, '/fault-history'),
+                    onTap: (){
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => FaultHistoryScreen(
+                            truckDocumentId: widget.truckId,
+                          ),
+                        ),
+                      );
+                    },
                   ),
                   const SizedBox(height: 20),
                   const Text(

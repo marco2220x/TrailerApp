@@ -6,8 +6,9 @@ import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class RouteScreen extends StatefulWidget {
-  final String truckDocumentId =
-      'G4F5gx1g0ITQUL0HBvUR'; // El ID del documento de Firestore
+  final String truckDocumentId;
+
+  RouteScreen({required this.truckDocumentId});
 
   @override
   _RouteScreenState createState() => _RouteScreenState();
@@ -21,79 +22,20 @@ class _RouteScreenState extends State<RouteScreen> {
   LatLng? _endLocation;
 
   final String _openRouteServiceApiKey =
-      '5b3ce3597851110001cf62486d87929fc8724ec6a10783e887949758'; // Reemplaza con tu clave de OpenRouteService
+      '5b3ce3597851110001cf62486d87929fc8724ec6a10783e887949758';
 
-  // Función para obtener y mostrar la ruta desde la API de OpenRouteService
-  Future<void> _startRoute() async {
-    try {
-      if (_startLocation != null && _endLocation != null) {
-        final routePoints = await getRoutePoints(
-          '${_startLocation!.longitude},${_startLocation!.latitude}', // Longitud, Latitud para OpenRouteService
-          '${_endLocation!.longitude},${_endLocation!.latitude}', // Longitud, Latitud para OpenRouteService
-        );
-        setState(() {
-          _routePoints = routePoints;
-          _isRouteActive = true;
-        });
-      } else {
-        throw Exception(
-            'Las coordenadas de inicio y fin no están disponibles.');
-      }
-    } catch (e) {
-      print("Error al obtener la ruta: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error al obtener la ruta: $e")),
-      );
-    }
+  @override
+  void initState() {
+    super.initState();
+    _fetchCoordinates();
   }
 
-  // Función para detener la ruta
-  void _endRoute() {
-    setState(() {
-      _routePoints = [];
-      _isRouteActive = false;
-    });
-  }
-
-  // Obtener puntos de la API de OpenRouteService
-  Future<List<LatLng>> getRoutePoints(String start, String end) async {
-    final url =
-        'https://api.openrouteservice.org/v2/directions/driving-car?api_key=$_openRouteServiceApiKey&start=$start&end=$end';
-
-    try {
-      final response = await http.get(Uri.parse(url), headers: {
-        'Authorization': 'Bearer $_openRouteServiceApiKey',
-      });
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final polyline = data['features'][0]['geometry']['coordinates'];
-        return decodePolyline(polyline);
-      } else {
-        throw Exception('Error en la solicitud: ${response.statusCode}');
-      }
-    } catch (e) {
-      print("Error en la solicitud HTTP: $e");
-      rethrow;
-    }
-  }
-
-  // Decodificar la polyline de OpenRouteService
-  List<LatLng> decodePolyline(List<dynamic> encoded) {
-    List<LatLng> points = [];
-    for (var point in encoded) {
-      points.add(LatLng(
-          point[1], point[0])); // OJO: la latitud y longitud están invertidas
-    }
-    return points;
-  }
-
-  // Función para obtener las coordenadas desde Firestore
+  // Fetch coordinates from Firestore
   Future<void> _fetchCoordinates() async {
     try {
       DocumentSnapshot doc = await FirebaseFirestore.instance
-          .collection('camiones') // Ajusta el nombre de la colección
-          .doc(widget.truckDocumentId) // Usa el ID del documento proporcionado
+          .collection('camiones')
+          .doc(widget.truckDocumentId)
           .get();
 
       if (doc.exists) {
@@ -106,7 +48,7 @@ class _RouteScreenState extends State<RouteScreen> {
           _endLocation = LatLng(endGeoPoint.latitude, endGeoPoint.longitude);
         });
       } else {
-        throw Exception('Documento no encontrado');
+        throw Exception('Documento no encontrado en Firestore');
       }
     } catch (e) {
       print("Error al obtener las coordenadas: $e");
@@ -116,10 +58,63 @@ class _RouteScreenState extends State<RouteScreen> {
     }
   }
 
-  @override
-  void initState() {
-    super.initState();
-    _fetchCoordinates();
+  Future<void> _startRoute() async {
+    if (_startLocation == null || _endLocation == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Las coordenadas no están disponibles"),
+        ),
+      );
+      return;
+    }
+
+    try {
+      final routePoints = await getRoutePoints(
+        '${_startLocation!.longitude},${_startLocation!.latitude}',
+        '${_endLocation!.longitude},${_endLocation!.latitude}',
+      );
+      setState(() {
+        _routePoints = routePoints;
+        _isRouteActive = true;
+      });
+    } catch (e) {
+      print("Error al iniciar la ruta: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error al iniciar la ruta: $e")),
+      );
+    }
+  }
+
+  void _endRoute() {
+    setState(() {
+      _routePoints = [];
+      _isRouteActive = false;
+    });
+  }
+
+  Future<List<LatLng>> getRoutePoints(String start, String end) async {
+    final url =
+        'https://api.openrouteservice.org/v2/directions/driving-car?api_key=$_openRouteServiceApiKey&start=$start&end=$end';
+
+    try {
+      final response = await http.get(Uri.parse(url));
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final polyline = data['features'][0]['geometry']['coordinates'];
+        return decodePolyline(polyline);
+      } else {
+        throw Exception('Error al obtener la ruta: ${response.statusCode}');
+      }
+    } catch (e) {
+      print("Error al obtener puntos de ruta: $e");
+      rethrow;
+    }
+  }
+
+  List<LatLng> decodePolyline(List<dynamic> encoded) {
+    return encoded
+        .map((point) => LatLng(point[1], point[0]))
+        .toList(); // Invertimos latitud y longitud
   }
 
   @override
@@ -138,9 +133,7 @@ class _RouteScreenState extends State<RouteScreen> {
         children: [
           GoogleMap(
             initialCameraPosition: CameraPosition(
-              target: _startLocation ??
-                  LatLng(19.432608,
-                      -99.133209), // Valor predeterminado si las coordenadas aún no se cargaron
+              target: _startLocation ?? const LatLng(19.432608, -99.133209),
               zoom: 6,
             ),
             polylines: {

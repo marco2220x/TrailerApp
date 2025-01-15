@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart'; // Importa Firestore
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class FaultAnalysisScreen extends StatefulWidget {
-  final String truckDocumentId = 'G4F5gx1g0ITQUL0HBvUR';
+  final String truckDocumentId; // Recibimos truckId como parámetro
+
+  const FaultAnalysisScreen({Key? key, required this.truckDocumentId})
+      : super(key: key);
 
   @override
   _FaultAnalysisScreenState createState() => _FaultAnalysisScreenState();
@@ -15,44 +18,46 @@ class _FaultAnalysisScreenState extends State<FaultAnalysisScreen> {
   String? faultReason;
   String? correctiveAction;
 
-  // Método para analizar la falla (muestra resultados estáticos)
+  // Método para analizar la falla
   void _analyzeFault() {
+    if (_faultCodeController.text.trim().isEmpty ||
+        _lampColorController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Por favor, completa todos los campos.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     setState(() {
-      faultReason =
-          "Turbocharger boost pressure drop detected."; // Resultado estático
-      correctiveAction =
-          "Schedule a service for inspection."; // Acción estática
+      faultReason = "Turbocharger boost pressure drop detected.";
+      correctiveAction = "Schedule a service for inspection.";
     });
 
-    // Guardar en Firestore
+    // Guardar en Firestore con widget.truckDocumentId
     _saveFaultRecord();
   }
 
-  // Método para guardar los datos en Firestore
   void _saveFaultRecord() async {
-    // Referencia a la subcolección 'fallas' del camión con el ID proporcionado
     final faultCollection = FirebaseFirestore.instance
         .collection('camiones')
-        .doc(widget.truckDocumentId)
+        .doc(widget.truckDocumentId) // Usamos el truckId pasado al constructor
         .collection('fallas');
 
-    // Crear un nuevo documento con los datos del análisis
     await faultCollection.add({
-      'codigo': _faultCodeController
-          .text, // El código de falla ingresado por el usuario
-      'resultados':
-          faultReason ?? '', // Resultado de análisis (razón de la falla)
-      'accion': correctiveAction ?? '', // Acción correctiva
-      'relacion_codigos':
-          'Posibles relaciones', // Este campo estático como ejemplo
-      'tiempo': FieldValue.serverTimestamp(), // Fecha y hora de la consulta
-      'mecanico': '', // Dejamos vacío para llenar más tarde
-      'solucion': '', // Dejamos vacío para llenar más tarde
+      'codigo': _faultCodeController.text,
+      'resultados': faultReason ?? '',
+      'accion': correctiveAction ?? '',
+      'relacion_codigos': 'Posibles relaciones',
+      'tiempo': FieldValue.serverTimestamp(),
+      'mecanico': '',
+      'solucion': '',
     });
 
-    // Opcional: Mostrar un mensaje confirmando que el registro fue guardado
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Análisis guardado exitosamente')),
+      const SnackBar(content: Text('Análisis guardado exitosamente')),
     );
   }
 
@@ -68,6 +73,7 @@ class _FaultAnalysisScreenState extends State<FaultAnalysisScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              const SizedBox(height: 20),
               const Text(
                 'Realizar Análisis',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
